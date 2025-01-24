@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { NewPaymentRequest } from '../types';
 import PhoneInput from 'react-phone-number-input/input';
 import 'react-phone-number-input/style.css';
+import { useDarkMode } from '../context/DarkModeContext';
 import { parsePhoneNumber } from 'libphonenumber-js';
 
 export function PaymentRequestCreation() {
@@ -15,6 +16,9 @@ export function PaymentRequestCreation() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+
+  // Dark mode state
+  useDarkMode();
 
   const formatPhoneNumber = (phone: string) => {
     try {
@@ -38,14 +42,16 @@ export function PaymentRequestCreation() {
       case 4: // Amount
         return amount && parseFloat(amount) > 0;
       case 5: // Description
-        return description.trim().length > 0;
+        // If last input is not visible, consider it valid
+        return !isLastInputVisible || description.trim().length > 0;
       default:
         return false;
     }
   };
 
   const checkAllStepsValidity = () => {
-    return [0, 1, 2, 3, 4, 5].every(step => validateStep(step));
+    // If last input is not visible, exclude it from validation
+    return [0, 1, 2, 3, 4, ...(isLastInputVisible ? [5] : [])].every(step => validateStep(step));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,20 +154,56 @@ export function PaymentRequestCreation() {
     }
   }, [sender, senderPhone, recipient, recipientPhone, amount, description, currentStep]);
 
+  // Add state for input timeout
+  const [isLastInputVisible, setIsLastInputVisible] = useState(true);
+
+  // Effect to handle input timeout
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    // Only start timeout if we're on the last step and there's no input
+    if (currentStep === 5 && description.trim() === '') {
+      timeoutId = setTimeout(() => {
+        setIsLastInputVisible(false);
+      }, 10000);
+    }
+
+    // Reset visibility if description changes or we move to this step
+    if (description.trim() !== '') {
+      setIsLastInputVisible(true);
+    }
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [currentStep, description]);
+
+  // Modify existing input handlers to update last input time
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDescription = e.target.value;
+    setDescription(newDescription);
+    
+    // Always show input when typing
+    if (newDescription.trim() !== '') {
+      setIsLastInputVisible(true);
+    }
+  };
+
   const renderFormStep = () => {
     const formSteps = [
       {
-        label: "Your Name",
+        botMessage: "Hi there! What's your name?",
         input: (
           <input
             id="sender"
-            name="sender"
             type="text"
             required
-            className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base 
-              ${sender.trim().length > 1
-                ? 'border-green-500 focus:border-green-500'
-                : 'border-gray-300 focus:border-indigo-500'}`}
+            className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-base 
+              dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-purple-600 dark:focus:border-purple-600
+              ${sender.trim().length > 1 
+                ? 'border-green-500 focus:border-green-500 dark:border-green-500' 
+                : 'border-gray-300 focus:border-indigo-500 dark:border-gray-600'}`}
             placeholder="Enter your name"
             value={sender}
             onChange={(e) => setSender(e.target.value)}
@@ -170,34 +212,35 @@ export function PaymentRequestCreation() {
         isValid: sender.trim().length > 1
       },
       {
-        label: "Your Phone Number",
+        botMessage: `Nice to meet you, ${sender || 'there'}! What's your phone number?`,
         input: (
           <PhoneInput
             international
             withCountryCallingCode
             value={senderPhone}
             onChange={(value) => setSenderPhone(value || '')}
-            placeholder="Sender Phone Number"
-            className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base 
+            placeholder="Your phone number"
+            className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-base 
+              dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-purple-600 dark:focus:border-purple-600
               ${senderPhone && senderPhone.length > 5
-                ? 'border-green-500 focus:border-green-500'
-                : 'border-gray-300 focus:border-indigo-500'}`}
+                ? 'border-green-500 focus:border-green-500 dark:border-green-500'
+                : 'border-gray-300 focus:border-indigo-500 dark:border-gray-600'}`}
           />
         ),
         isValid: senderPhone && senderPhone.length > 5
       },
       {
-        label: "Recipient Name",
+        botMessage: "Who are you requesting money from?",
         input: (
           <input
             id="recipient"
-            name="recipient"
             type="text"
             required
-            className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base 
-              ${recipient.trim().length > 1
-                ? 'border-green-500 focus:border-green-500'
-                : 'border-gray-300 focus:border-indigo-500'}`}
+            className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-base 
+              dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-purple-600 dark:focus:border-purple-600
+              ${recipient.trim().length > 1 
+                ? 'border-green-500 focus:border-green-500 dark:border-green-500' 
+                : 'border-gray-300 focus:border-indigo-500 dark:border-gray-600'}`}
             placeholder="Enter recipient's name"
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
@@ -206,40 +249,40 @@ export function PaymentRequestCreation() {
         isValid: recipient.trim().length > 1
       },
       {
-        label: "Recipient Phone Number",
+        botMessage: `Got it! What's ${recipient || "their"}'s phone number?`,
         input: (
           <PhoneInput
             international
             withCountryCallingCode
-            placeholder="Enter recipient's phone number"
             value={recipientPhone}
             onChange={(value: string | undefined) => setRecipientPhone(value || '')}
-            className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base 
+            className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-base 
+              dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-purple-600 dark:focus:border-purple-600
               ${recipientPhone && recipientPhone.length > 5
-                ? 'border-green-500 focus:border-green-500'
-                : 'border-gray-300 focus:border-indigo-500'}`}
+                ? 'border-green-500 focus:border-green-500 dark:border-green-500'
+                : 'border-gray-300 focus:border-indigo-500 dark:border-gray-600'}`}
+            placeholder="Recipient's phone number"
           />
         ),
         isValid: recipientPhone && recipientPhone.length > 5
       },
       {
-        label: "Amount",
+        botMessage: "How much money do you want to request?",
         input: (
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-gray-500 sm:text-base">$</span>
+              <span className="text-gray-500 dark:text-gray-300">$</span>
             </div>
             <input
               id="amount"
-              name="amount"
               type="number"
-              required
               step="0.01"
               min="0"
-              className={`w-full px-4 py-2 pl-7 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base 
+              className={`w-full px-4 py-2 pl-7 border rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-base 
+                dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-purple-600 dark:focus:border-purple-600
                 ${amount && parseFloat(amount) > 0
-                  ? 'border-green-500 focus:border-green-500'
-                  : 'border-gray-300 focus:border-indigo-500'}`}
+                  ? 'border-green-500 focus:border-green-500 dark:border-green-500'
+                  : 'border-gray-300 focus:border-indigo-500 dark:border-gray-600'}`}
               placeholder="Enter amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
@@ -249,83 +292,113 @@ export function PaymentRequestCreation() {
         isValid: amount && parseFloat(amount) > 0
       },
       {
-        label: "Description",
+        botMessage: "What's this payment for?",
         input: (
           <input
             id="description"
-            name="description"
             type="text"
             required
-            className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-base 
-              ${description.trim().length > 0
-                ? 'border-green-500 focus:border-green-500'
-                : 'border-gray-300 focus:border-indigo-500'}`}
+            className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-base 
+              dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-purple-600 dark:focus:border-purple-600
+              ${description.trim().length > 0 
+                ? 'border-green-500 focus:border-green-500 dark:border-green-500' 
+                : 'border-gray-300 focus:border-indigo-500 dark:border-gray-600'}`}
             placeholder="Enter payment description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={handleDescriptionChange}
           />
         ),
         isValid: description.trim().length > 0
       }
     ];
 
-    return formSteps.map((step, index) => (
-      <div
-        key={index}
-        className={`transition-all duration-500 ease-in-out transform 
-          ${index <= currentStep
-            ? 'opacity-100 translate-y-0 h-auto'
-            : 'opacity-0 translate-y-10 h-0 overflow-hidden'}
-          mobile:mb-4`}
-      >
-        <label
-          htmlFor={index === 0 ? 'sender' : index === 1 ? 'senderPhone' :
-            index === 2 ? 'recipient' : index === 3 ? 'recipientPhone' :
-              index === 4 ? 'amount' : 'description'}
-          className="block text-sm font-medium text-gray-700 mobile:mb-2 mobile:text-sm"
+    return formSteps.map((step, index) => {
+      // Completely hide the last step if not visible and not the current step
+      if (index === formSteps.length - 1 && !isLastInputVisible && currentStep < index) {
+        return null;
+      }
+
+      return (
+        <div
+          key={index}
+          className={`transition-all duration-500 ease-in-out transform 
+            ${index <= currentStep
+              ? 'opacity-100 translate-y-0 h-auto'
+              : 'opacity-0 translate-y-10 h-0 overflow-hidden'}
+            mobile:mb-4 space-y-2 
+            ${index === formSteps.length - 1 && !isLastInputVisible ? 'hidden' : ''}`}
         >
-          {step.label}
-        </label>
-        {step.input}
-      </div>
-    ));
+          {/* Bot Message */}
+          <div className="flex items-start mb-2">
+            <div className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white p-3 rounded-lg max-w-[80%] shadow-sm">
+              {step.botMessage}
+            </div>
+          </div>
+
+          {/* User Response */}
+          {index <= currentStep && (
+            <div className="flex justify-end items-start mb-2">
+              <div className="bg-purple-500 text-white p-3 rounded-lg max-w-[80%] shadow-sm">
+                {index === 0 && sender}
+                {index === 1 && senderPhone}
+                {index === 2 && recipient}
+                {index === 3 && recipientPhone}
+                {index === 4 && `$${amount}`}
+                {index === 5 && description}
+              </div>
+            </div>
+          )}
+
+          {/* Input Field */}
+          {index === currentStep && isLastInputVisible && (
+            <div className="mt-2">
+              {step.input}
+            </div>
+          )}
+        </div>
+      );
+    });
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 md:justify-center px-4 sm:px-6 lg:px-8 pt-24">
-      <div className="w-full max-w-md mx-auto md:bg-white md:shadow-lg md:rounded-xl md:p-8 
-                      mobile:fixed mobile:inset-0 mobile:bg-white mobile:p-6 mobile:pt-24 
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 md:justify-center px-4 sm:px-6 lg:px-8 pt-24">
+      <div className="w-full max-w-md mx-auto md:bg-white md:dark:bg-gray-800 md:shadow-lg md:rounded-xl md:p-8 
+                      mobile:fixed mobile:inset-0 mobile:bg-white mobile:dark:bg-gray-900 mobile:p-0 mobile:pt-24 
                       mobile:overflow-y-auto">
-        <div className="mb-6 mobile:sticky mobile:top-0 mobile:z-10 mobile:bg-white mobile:pb-4 
-                     md:sticky md:top-0 md:z-10 md:bg-white md:pb-4 md:shadow-sm">
-          <h2 className="text-center text-3xl font-bold text-gray-900 
+        <div className="mb-6 mobile:sticky mobile:z-10 mobile:bg-white mobile:dark:bg-gray-900 mobile:pb-4 
+                     md:sticky md:top-0 md:z-10 md:bg-white md:dark:bg-gray-800 md:pb-4 md:shadow-sm">
+          <h2 className="text-center text-3xl font-bold text-gray-900 dark:text-white 
                          mobile:text-2xl mobile:pt-4 
                          md:text-3xl md:pt-4">
             Create Payment Request
           </h2>
         </div>
-        <form className="space-y-6 mobile:flex mobile:flex-col mobile:space-y-2 mobile:pb-24" onSubmit={handleSubmit}>
+        <form 
+          className="space-y-6 mobile:flex mobile:flex-col mobile:space-y-2 mobile:pb-24 mobile:pt-8 
+                     md:grid md:grid-cols-1 md:gap-6 
+                     bg-white dark:bg-gray-800 mobile:px-4 md:p-4 rounded-lg shadow-sm" 
+          onSubmit={handleSubmit}
+        >
           <div className="grid grid-cols-1 gap-6 mobile:flex-grow mobile:pr-2 mobile:gap-2">
             {renderFormStep()}
           </div>
-
           {error && (
             <div className="text-red-500 text-sm text-center mt-4 mobile:fixed mobile:bottom-20 mobile:left-0 mobile:right-0 mobile:px-4
                             md:fixed md:top-20 md:left-0 md:right-0 md:px-4 md:z-50">
               {error}
             </div>
           )}
-
           {description.trim().length > 0 && (
             <div className="pt-4 transition-all duration-500 ease-in-out transform 
                             opacity-100 translate-y-0 
-                            mobile:fixed mobile:bottom-0 mobile:left-0 mobile:right-0 mobile:p-4 mobile:bg-white mobile:shadow-2xl">
+                            mobile:fixed mobile:bottom-0 mobile:left-0 mobile:right-0 mobile:p-4 mobile:bg-white mobile:dark:bg-gray-900 mobile:shadow-2xl">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300 ease-in-out"
+                className="w-full py-3 px-4 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors 
+                           disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Sending...' : 'Create and Share Request'}
+                {loading ? 'Submitting...' : 'Create Payment Request'}
               </button>
             </div>
           )}
