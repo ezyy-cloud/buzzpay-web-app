@@ -54,6 +54,12 @@ export function PaymentRequestCreation() {
     return [0, 1, 2, 3, 4, ...(isLastInputVisible ? [5] : [])].every(step => validateStep(step));
   };
 
+  const [paymentRequestStatus, setPaymentRequestStatus] = useState<{
+    success: boolean;
+    message: string;
+    shareLink?: string;
+  } | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -73,6 +79,7 @@ export function PaymentRequestCreation() {
         recipient,
         sender,
         sender_phone: formatPhoneNumber(senderPhone),
+        recipient_phone: formatPhoneNumber(recipientPhone),
         status: 'pending'
       };
 
@@ -87,15 +94,23 @@ export function PaymentRequestCreation() {
       // Generate shareable link
       const shareLink = `https://buzzpay.co/request/${data.id}`;
 
+      // Set payment request status
+      setPaymentRequestStatus({
+        success: true,
+        message: `Payment request of $${amount} to ${recipient} created successfully!`,
+        shareLink
+      });
+
       // Construct WhatsApp message
       const whatsappMessage =
-        `Payment Request from BuzzPay\n` +
-        `Sender: ${sender} (${formatPhoneNumber(senderPhone)})\n` +
-        `Recipient: ${recipient}\n` +
-        `Amount: $${parseFloat(amount).toFixed(2)}\n` +
-        `Description: ${description}\n` +
-        `Pay here: ${shareLink}`;
-
+        `Hey ${recipient}\n` +
+        `I just sent you a payment request for $${parseFloat(amount).toFixed(2)} for ${description}. ` +
+        `Could you please take a look and complete the payment?\n\n` +
+        `Click the link below to view the details:\n` +
+        `${shareLink}\n\n` +
+        `Thanks!\n\n`+
+        `${sender}\n\n`+
+        `Create your own payment request at https://buzzpay.co`;
       // Encode message for URL
       const encodedMessage = encodeURIComponent(whatsappMessage);
 
@@ -133,10 +148,10 @@ export function PaymentRequestCreation() {
     // Automatically progress to next step when current step is validated
     if (validateStep(currentStep)) {
       const timer = setTimeout(() => {
-        if (currentStep < 5) {
+        if (currentStep < 6) {
           setCurrentStep(prev => prev + 1);
         }
-      }, 500);
+      }, 2000);
       return () => clearTimeout(timer);
     } else {
       // If current step becomes invalid, reset subsequent steps
@@ -187,6 +202,24 @@ export function PaymentRequestCreation() {
     // Always show input when typing
     if (newDescription.trim() !== '') {
       setIsLastInputVisible(true);
+    }
+  };
+
+  // Add state for tracking link copy
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // Function to handle link copying
+  const handleCopyLink = () => {
+    if (paymentRequestStatus?.shareLink) {
+      navigator.clipboard.writeText(paymentRequestStatus.shareLink)
+        .then(() => {
+          setLinkCopied(true);
+          // Reset copy state after 2 seconds
+          setTimeout(() => setLinkCopied(false), 2000);
+        })
+        .catch(err => {
+          console.error('Failed to copy link', err);
+        });
     }
   };
 
@@ -388,7 +421,7 @@ export function PaymentRequestCreation() {
               {error}
             </div>
           )}
-          {description.trim().length > 0 && (
+          {description.trim().length > 0 && !paymentRequestStatus && (
             <div className="pt-4 transition-all duration-500 ease-in-out transform 
                             opacity-100 translate-y-0 
                             mobile:fixed mobile:bottom-0 mobile:left-0 mobile:right-0 mobile:p-4 mobile:bg-white mobile:dark:bg-gray-900 mobile:shadow-2xl">
@@ -400,6 +433,38 @@ export function PaymentRequestCreation() {
               >
                 {loading ? 'Submitting...' : 'Create Payment Request'}
               </button>
+            </div>
+          )}
+          {paymentRequestStatus && (
+            <div className="pt-4 transition-all duration-500 ease-in-out transform 
+                            opacity-100 translate-y-0 
+                            mobile:fixed mobile:bottom-0 mobile:left-0 mobile:right-0 mobile:p-4 mobile:bg-white mobile:dark:bg-gray-900 mobile:shadow-2xl">
+              <div className="w-full py-3 px-4 bg-green-100 text-green-800 rounded-md flex items-center justify-between">
+                <div className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{paymentRequestStatus.message}</span>
+                </div>
+                {paymentRequestStatus.shareLink && (
+                  <button 
+                    onClick={handleCopyLink}
+                    className={`ml-2 text-green-600 hover:text-green-800 ${linkCopied ? 'text-green-400' : ''}`}
+                    aria-label="Copy payment link"
+                    type='button'
+                  >
+                    {linkCopied ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </form>

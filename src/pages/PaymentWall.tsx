@@ -1,30 +1,31 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { CreditCard, Smartphone, Building2, ArrowRight } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Smartphone, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { PaymentMethod } from '../types';
+import { useDarkMode } from '../context/DarkModeContext';
+import { CustomModal } from '../components/CustomModal';
 
 export function PaymentWall() {
+  // Dark mode
+  useDarkMode();
+
   const { id } = useParams();
-  const navigate = useNavigate();
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ussdCode, setUssdCode] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   const paymentMethods: PaymentMethod[] = [
-    { id: 'card', name: 'Credit Card', icon: 'CreditCard' },
-    { id: 'mobile', name: 'Mobile Money', icon: 'Smartphone' },
-    { id: 'bank', name: 'Bank Transfer', icon: 'Building2' },
+    { id: 'econet', name: 'Ecocash', icon: 'Smartphone' },
   ];
 
   const getIcon = (iconName: string) => {
     switch (iconName) {
-      case 'CreditCard':
-        return <CreditCard className="w-6 h-6" />;
       case 'Smartphone':
         return <Smartphone className="w-6 h-6" />;
-      case 'Building2':
-        return <Building2 className="w-6 h-6" />;
       default:
         return null;
     }
@@ -37,32 +38,71 @@ export function PaymentWall() {
     setError(null);
 
     try {
+      // Fetch the full payment request details
+      const { data: requestData, error: fetchError } = await supabase
+        .from('payment_requests')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Prepare update payload
+      const updatePayload = {
+        status: 'processing',
+        payment_method: selectedMethod,
+        payment_date: new Date().toISOString()
+      };
+
+      // Attempt to update
       const { error } = await supabase
         .from('payment_requests')
-        .update({
-          status: 'paid',
-          payment_method: selectedMethod,
-          payment_date: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', id);
 
-      if (error) throw error;
-      navigate(`/request/${id}/receipt`);
+      if (error) {
+        console.error('Update error:', JSON.stringify(error, null, 2));
+        throw error;
+      }
+
+      // Switch case to handle different payment methods
+      switch (selectedMethod) {
+        case 'econet':
+          // Clean and format phone number (remove any non-digit characters)
+          const cleanPhone = requestData.recipient_phone.replace(/\D/g, '');
+          
+          // Format the USSD code for Econet
+          const newUssdCode = `*153*1*1*${cleanPhone}*${requestData.amount}#`;
+
+          // Copy USSD code to clipboard
+          await navigator.clipboard.writeText(newUssdCode);
+
+          // Set USSD code and show confirmation modal
+          setUssdCode(newUssdCode);
+          setShowConfirmModal(true);
+          break;
+      }
     } catch (err) {
-      setError('Failed to process payment. Please try again.');
-      console.error('Error processing payment:', err);
-    } finally {
+      console.error('Payment error:', err);
+      setShowErrorModal(true);
       setLoading(false);
     }
   };
 
+  const handleConfirmPayment = () => {
+    // Optionally open phone dialer (works on mobile devices)
+    window.location.href = `tel:${ussdCode}`;
+    setShowConfirmModal(false);
+    setLoading(false);
+  };
+
   return (
-    <div className="max-w-lg mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="max-w-lg mx-auto bg-white dark:bg-gray-900 rounded-lg shadow-2xl overflow-hidden">
       <div className="p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Choose Payment Method</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Choose Payment Method</h2>
 
         {error && (
-          <div className="mb-4 text-sm text-red-600">{error}</div>
+          <div className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</div>
         )}
 
         <div className="space-y-4">
@@ -70,18 +110,20 @@ export function PaymentWall() {
             <button
               key={method.id}
               onClick={() => setSelectedMethod(method.id)}
-              className={`w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-colors ${
-                selectedMethod === method.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-blue-200'
-              }`}
+              className={`w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-colors 
+                ${selectedMethod === method.id
+                  ? 'border-purple-500 bg-purple-50 dark:border-purple-600 dark:bg-purple-900/30'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-purple-200 dark:hover:border-purple-600'
+                }`}
             >
               <div className={`${
-                selectedMethod === method.id ? 'text-blue-500' : 'text-gray-400'
+                selectedMethod === method.id 
+                  ? 'text-purple-500 dark:text-purple-400' 
+                  : 'text-gray-400 dark:text-gray-600'
               }`}>
                 {getIcon(method.icon)}
               </div>
-              <span className="font-medium text-gray-900">{method.name}</span>
+              <span className="font-medium text-gray-900 dark:text-white">{method.name}</span>
             </button>
           ))}
         </div>
@@ -89,11 +131,49 @@ export function PaymentWall() {
         <button
           onClick={handlePayment}
           disabled={!selectedMethod || loading}
-          className="mt-8 w-full flex items-center justify-center gap-2 px-4 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed"
+          className="mt-8 w-full flex items-center justify-center gap-2 px-4 py-3 
+            border border-transparent text-base font-medium rounded-md 
+            text-white bg-purple-600 hover:bg-purple-700 
+            dark:bg-purple-700 dark:hover:bg-purple-600 
+            focus:outline-none focus:ring-2 focus:ring-offset-2 
+            focus:ring-purple-500 
+            disabled:bg-gray-300 disabled:cursor-not-allowed 
+            dark:disabled:bg-gray-700 dark:disabled:text-gray-500"
         >
-          {loading ? 'Processing...' : 'Continue to Payment'}
-          <ArrowRight className="w-4 h-4" />
+          {loading ? 'Processing...' : 'Make Payment'}
         </button>
+
+        {showConfirmModal && (
+          <CustomModal
+            isOpen={showConfirmModal}
+            onClose={() => {
+              setShowConfirmModal(false);
+              setLoading(false);
+            }}
+            onConfirm={handleConfirmPayment}
+            type="confirm"
+            title="Econet USSD Payment"
+            message={`USSD Code: ${ussdCode} (copied to clipboard)
+
+Payment Steps:
+1. Open your phone's dialer
+2. Dial the USSD code
+3. Follow the on-screen instructions`}
+            confirmText="Open Dialer"
+            cancelText="Cancel"
+          />
+        )}
+
+        {showErrorModal && (
+          <CustomModal
+            isOpen={showErrorModal}
+            onClose={() => setShowErrorModal(false)}
+            type="alert"
+            title="Payment Error"
+            message="Unable to process payment. Please check your connection and try again."
+            confirmText="Close"
+          />
+        )}
       </div>
     </div>
   );
