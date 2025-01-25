@@ -34,7 +34,7 @@ export function PaymentWall() {
 
   const handlePayment = async () => {
     if (!selectedMethod || !id) return;
-    
+
     setLoading(true);
     setError(null);
 
@@ -77,7 +77,7 @@ export function PaymentWall() {
         case 'Ecocash':
           // Clean and format phone number (remove any non-digit characters)
           const cleanPhone = requestData.recipient_phone.replace(/\D/g, '');
-          
+
           // Format the USSD code for Econet
           const newUssdCode = `*153*1*1*${cleanPhone}*${requestData.amount}#`;
 
@@ -97,8 +97,24 @@ export function PaymentWall() {
   };
 
   const handleConfirmPayment = () => {
-    // Optionally open phone dialer (works on mobile devices)
-    window.location.href = `tel:${ussdCode}`;
+    // Improve cross-browser compatibility for phone dialer
+    try {
+      // First, try the standard tel: link
+      const telLink = document.createElement('a');
+      telLink.href = `tel:${ussdCode}`;
+      
+      // Check if the device supports tel: links
+      if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
+        // For iOS, use a more robust method
+        window.location.href = `tel:${ussdCode}`;
+      } else {
+        // For other browsers, attempt to click the link
+        telLink.click();
+      }
+    } catch (error) {
+      console.error('Could not open phone dialer:', error);
+    }
+    
     setShowConfirmModal(false);
     setLoading(false);
   };
@@ -123,11 +139,10 @@ export function PaymentWall() {
                   : 'border-gray-200 dark:border-gray-700 hover:border-purple-200 dark:hover:border-purple-600'
                 }`}
             >
-              <div className={`${
-                selectedMethod === method.name 
-                  ? 'text-purple-500 dark:text-purple-400' 
+              <div className={`${selectedMethod === method.name
+                  ? 'text-purple-500 dark:text-purple-400'
                   : 'text-gray-400 dark:text-gray-600'
-              }`}>
+                }`}>
                 {getIcon(method.icon)}
               </div>
               <span className="font-medium text-gray-900 dark:text-white">{method.name}</span>
@@ -161,11 +176,10 @@ export function PaymentWall() {
             type="confirm"
             title="Econet USSD Payment"
             message={`USSD Code: ${ussdCode} (copied to clipboard)
-
-Payment Steps:
-1. Open your phone's dialer
-2. Dial the USSD code
-3. Follow the on-screen instructions`}
+              Payment Steps:
+              1. Open your phone's dialer
+              2. Dial the USSD code
+              3. Follow the on-screen instructions`}
             confirmText="Open Dialer"
             cancelText="Cancel"
           />

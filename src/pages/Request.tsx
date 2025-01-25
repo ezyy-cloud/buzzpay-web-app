@@ -3,7 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { PaymentRequest } from '../types';
 import { useDarkMode } from '../context/DarkModeContext';
-import PhoneInput from 'react-phone-number-input/input';
+import PhoneInput, { 
+  formatPhoneNumberIntl, 
+  isValidPhoneNumber 
+} from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
 // Form step type definition
@@ -26,39 +29,45 @@ export function Request() {
   const [currentStep, setCurrentStep] = useState(0);
   const [recipientPhone, setRecipientPhone] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
+
+  // Helper function to handle phone number changes
+  const handlePhoneChange = (value: string | undefined) => {
+    if (value) {
+      try {
+        // Ensure the phone number is in international format
+        const formattedPhone = formatPhoneNumberIntl(value) || value;
+        setRecipientPhone(formattedPhone);
+      } catch (error) {
+        console.error('Phone number formatting error:', error);
+        setRecipientPhone(value);
+      }
+    } else {
+      setRecipientPhone('');
+    }
+  };
+
   const [formSteps] = useState<FormStep[]>([
     {
       input: (
-        <div className="relative">
-          <PhoneInput
-            value={recipientPhone}
-            onChange={(value) => setRecipientPhone(value || '')}
-            placeholder="Enter your phone number"
-            className="w-full px-4 py-2 text-gray-200 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            style={{
-              input: {
-                backgroundColor: 'transparent',
-                border: 'none',
-                color: 'inherit',
-                width: '100%',
-                padding: '0',
-                fontSize: 'inherit'
-              },
-              country: {
-                color: 'inherit'
-              }
-            }}
-            inputProps={{
-              className: "w-full px-0 py-0 text-gray-200 bg-transparent focus:outline-none"
-            }} />
-          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11a1 1 0 11-2 0v-3a1 1 0 112 0v3zm-1-8a1 1 0 00-1 1v1a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-          </div>
-        </div>
+        <PhoneInput
+          international
+          withCountryCallingCode
+          defaultCountry="ZW"
+          countries={['ZA', 'US', 'GB', 'AU', 'CA', 'ZW', 'NG']}
+          value={recipientPhone}
+          onChange={handlePhoneChange}
+          placeholder="Enter your phone number"
+          className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-base 
+            dark:bg-gray-700 dark:border-gray-600 dark:text-black dark:focus:ring-purple-600 dark:focus:border-purple-600
+            ${recipientPhone && recipientPhone.length > 5 && isValidPhoneNumber(recipientPhone)
+              ? 'border-green-500 focus:border-green-500 dark:border-green-500'
+              : 'border-gray-300 focus:border-indigo-500 dark:border-gray-600'}`}
+          countrySelectProps={{
+            className: 'custom-country-select',
+          }}
+        />
       ),
-      validate: () => recipientPhone.trim().length > 0,
+      validate: () => !!recipientPhone && recipientPhone.length > 5 && isValidPhoneNumber(recipientPhone),
       botMessage: ''
     }
   ]);
@@ -137,7 +146,7 @@ export function Request() {
   const validateStep = (step: number) => {
     switch (step) {
       case 0: // Phone Number
-        return recipientPhone && recipientPhone.length > 5;
+        return recipientPhone && recipientPhone.length > 5 && isValidPhoneNumber(recipientPhone);
       default:
         return true;
     }

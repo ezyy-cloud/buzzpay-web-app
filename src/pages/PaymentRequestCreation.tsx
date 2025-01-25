@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { NewPaymentRequest } from '../types';
-import PhoneInput from 'react-phone-number-input/input';
+import PhoneInput, { 
+  formatPhoneNumberIntl, 
+  isValidPhoneNumber} from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { useDarkMode } from '../context/DarkModeContext';
-import { parsePhoneNumber } from 'libphonenumber-js';
+import { parsePhoneNumber as parsePhoneNumberLib } from 'libphonenumber-js';
 
 export function PaymentRequestCreation() {
   const [sender, setSender] = useState('');
@@ -20,9 +22,25 @@ export function PaymentRequestCreation() {
   // Dark mode state
   useDarkMode();
 
+  // Helper function to format and validate phone number
+  const handlePhoneChange = (setter: (phone: string) => void) => (value: string | undefined) => {
+    if (value) {
+      try {
+        // Ensure the phone number is in international format
+        const formattedPhone = formatPhoneNumberIntl(value) || value;
+        setter(formattedPhone);
+      } catch (error) {
+        console.error('Phone number formatting error:', error);
+        setter(value);
+      }
+    } else {
+      setter('');
+    }
+  };
+
   const formatPhoneNumber = (phone: string) => {
     try {
-      const phoneNumber = parsePhoneNumber(phone);
+      const phoneNumber = parsePhoneNumberLib(phone);
       return phoneNumber.number.toString().replace(/\D/g, '');
     } catch {
       return phone;
@@ -34,11 +52,11 @@ export function PaymentRequestCreation() {
       case 0: // Sender Name
         return sender.trim().length > 1;
       case 1: // Sender Phone
-        return senderPhone && senderPhone.length > 5;
+        return senderPhone && senderPhone.length > 5 && isValidPhoneNumber(senderPhone);
       case 2: // Recipient Name
         return recipient.trim().length > 1;
       case 3: // Recipient Phone
-        return recipientPhone && recipientPhone.length > 5;
+        return recipientPhone && recipientPhone.length > 5 && isValidPhoneNumber(recipientPhone);
       case 4: // Amount
         return amount && parseFloat(amount) > 0;
       case 5: // Description
@@ -250,17 +268,22 @@ export function PaymentRequestCreation() {
           <PhoneInput
             international
             withCountryCallingCode
+            defaultCountry="ZW"
+            countries={['ZA', 'US', 'GB', 'AU', 'CA', 'ZW', 'NG']}
             value={senderPhone}
-            onChange={(value) => setSenderPhone(value || '')}
+            onChange={handlePhoneChange(setSenderPhone)}
             placeholder="Your phone number"
             className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-base 
-              dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-purple-600 dark:focus:border-purple-600
-              ${senderPhone && senderPhone.length > 5
+              dark:bg-gray-700 dark:border-gray-600 dark:text-black dark:focus:ring-purple-600 dark:focus:border-purple-600
+              ${senderPhone && senderPhone.length > 5 && isValidPhoneNumber(senderPhone)
                 ? 'border-green-500 focus:border-green-500 dark:border-green-500'
                 : 'border-gray-300 focus:border-indigo-500 dark:border-gray-600'}`}
+            countrySelectProps={{
+              className: 'custom-country-select',
+            }}
           />
         ),
-        isValid: senderPhone && senderPhone.length > 5
+        isValid: senderPhone && senderPhone.length > 5 && isValidPhoneNumber(senderPhone)
       },
       {
         botMessage: "Who are you requesting money from?",
@@ -287,17 +310,22 @@ export function PaymentRequestCreation() {
           <PhoneInput
             international
             withCountryCallingCode
+            defaultCountry="ZW"
+            countries={['ZA', 'US', 'GB', 'AU', 'CA', 'ZW', 'NG']}
             value={recipientPhone}
-            onChange={(value: string | undefined) => setRecipientPhone(value || '')}
+            onChange={handlePhoneChange(setRecipientPhone)}
+            placeholder="Recipient's phone number"
             className={`w-full px-4 py-2 border rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 text-base 
-              dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-purple-600 dark:focus:border-purple-600
-              ${recipientPhone && recipientPhone.length > 5
+              dark:bg-gray-700 dark:border-gray-600 dark:text-black dark:focus:ring-purple-600 dark:focus:border-purple-600
+              ${recipientPhone && recipientPhone.length > 5 && isValidPhoneNumber(recipientPhone)
                 ? 'border-green-500 focus:border-green-500 dark:border-green-500'
                 : 'border-gray-300 focus:border-indigo-500 dark:border-gray-600'}`}
-            placeholder="Recipient's phone number"
+            countrySelectProps={{
+              className: 'custom-country-select',
+            }}
           />
         ),
-        isValid: recipientPhone && recipientPhone.length > 5
+        isValid: recipientPhone && recipientPhone.length > 5 && isValidPhoneNumber(recipientPhone)
       },
       {
         botMessage: "How much money do you want to request?",
