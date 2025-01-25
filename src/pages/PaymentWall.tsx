@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Smartphone, ArrowRight } from 'lucide-react';
+import { Smartphone } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { PaymentMethod } from '../types';
 import { useDarkMode } from '../context/DarkModeContext';
@@ -109,7 +109,7 @@ export function PaymentWall() {
           {paymentMethods.map((method) => (
             <button
               key={method.id}
-              onClick={() => setSelectedMethod(method.id)}
+              onClick={() => setSelectedMethod(method.name)}
               className={`w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-colors 
                 ${selectedMethod === method.id
                   ? 'border-purple-500 bg-purple-50 dark:border-purple-600 dark:bg-purple-900/30'

@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { DarkModeProvider, useDarkMode } from './context/DarkModeContext';
 
-import { RecipientView } from './pages/RecipientView';
+import { Request } from './pages/Request';
 import { PaymentWall } from './pages/PaymentWall';
 import { Receipt } from './pages/Receipt';
 import { PaymentRequestCreation } from './pages/PaymentRequestCreation';
@@ -39,7 +39,7 @@ function AppContent() {
         <Routes>
           <Route path="/create" element={<PaymentRequestCreation />} />
           <Route path="/" element={<Navigate to="/create" replace />} />
-          <Route path="/request/:id" element={<RecipientView />} />
+          <Route path="/request/:id" element={<Request />} />
           <Route path="/request/:id/pay" element={<PaymentWall />} />
           <Route path="/request/:id/receipt" element={<Receipt />} />
         </Routes>

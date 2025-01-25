@@ -1,4 +1,11 @@
+import { ReactNode } from "react";
+
 export interface PaymentRequest {
+  recipient_phone: string;
+  sender_phone: string;
+  sender: ReactNode;
+  created_at: any;
+  payment_method: string;
   id: string;
   amount: number;
   description: string;
@@ -16,6 +23,7 @@ export interface NewPaymentRequest {
   recipient: string;
   sender: string;
   sender_phone: string;
+  recipient_phone: string;
   status: 'pending' | 'paid' | 'cancelled';
 }
 
