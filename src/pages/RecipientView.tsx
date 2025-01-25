@@ -49,6 +49,11 @@ export function RecipientView() {
     {
       botMessage: "Number verified! Here are the payment details.",
       validate: () => true
+    },
+    {
+      botMessage: 'Payment details are ready. Would you like to proceed?',
+      input: null,
+      validate: () => true
     }
   ]);
 
@@ -91,79 +96,63 @@ export function RecipientView() {
       const cleanRecipientPhone = recipientPhone.replace(/\D/g, '');
       const cleanRequestPhone = (request.recipient_phone || '').replace(/\D/g, '');
 
-      console.log('Verification Details:', {
-        inputRecipientPhone: recipientPhone,
-        storedRecipientPhone: request.recipient_phone,
-        cleanRecipientPhone,
-        cleanRequestPhone
-      });
+      console.clear(); // Clear previous logs
+      console.group('Phone Verification');
+      console.log('Input Phone:', cleanRecipientPhone);
+      console.log('Stored Phone:', cleanRequestPhone);
 
       // First, try simple digit-based comparison
       if (cleanRecipientPhone === cleanRequestPhone) {
-        setPhoneVerified(true);
-        setCurrentStep(prev => prev + 1);
-        return;
-      }
+        console.log('✅ Verification Successful');
+        console.groupEnd();
 
-      // If simple comparison fails, try parsing with default country
-      try {
-        const parsedPhoneNumber = parsePhoneNumber(recipientPhone, 'US');
-        const formattedRequestPhone = parsePhoneNumber(request.recipient_phone || '', 'US');
-
-        console.log('Parsed Phone Numbers:', {
-          parsedInputPhone: parsedPhoneNumber?.number,
-          parsedStoredPhone: formattedRequestPhone?.number
+        // Update form steps to progress to next step
+        setFormSteps(prevSteps => {
+          const updatedSteps = [...prevSteps];
+          updatedSteps[0] = {
+            ...updatedSteps[0],
+            botMessage: 'Number verified successfully!'
+          };
+          return updatedSteps;
         });
 
-        if (parsedPhoneNumber && formattedRequestPhone &&
-          parsedPhoneNumber.number === formattedRequestPhone.number) {
-          setPhoneVerified(true);
-          setCurrentStep(prev => prev + 1);
-          return;
-        }
-      } catch (parseError) {
-        console.error('Phone parsing error:', parseError);
-      }
+        // Automatically move to next step after a short delay
+        setTimeout(() => {
+          setCurrentStep(prevStep => prevStep + 1);
+        }, 1000);
 
-      // If all parsing methods fail, show error in chat style
-      const errorMessage = 'Phone number does not match the recipient';
-      setCurrentStep(0);
-      setCurrentStep(prev => {
-        const newStep = 0;
-        // Simulate bot message
-        setTimeout(() => {
-          setFormSteps(currentSteps => {
-            const updatedSteps = [...currentSteps];
-            updatedSteps[newStep] = {
-              ...updatedSteps[newStep],
-              botMessage: errorMessage,
-              errorState: true
-            };
-            return updatedSteps;
-          });
-        }, 100);
-        return newStep;
+        return true;
+      } else {
+        console.log('❌ Verification Failed');
+        console.groupEnd();
+
+        // Number verification failed
+        setFormSteps(prevSteps => {
+          const updatedSteps = [...prevSteps];
+          updatedSteps[0] = {
+            ...updatedSteps[0],
+            botMessage: 'Verification failed. Please check the number.',
+            errorState: true
+          };
+          return updatedSteps;
+        });
+
+        return false;
+      }
+    } catch (error) {
+      console.error('Phone Verification Error:', error);
+      
+      setFormSteps(prevSteps => {
+        const updatedSteps = [...prevSteps];
+        updatedSteps[0] = {
+          ...updatedSteps[0],
+          botMessage: 'An error occurred during verification.',
+          errorState: true
+        };
+        return updatedSteps;
       });
-    } catch (err) {
-      console.error('Phone verification error:', err);
-      const errorMessage = 'Verification failed';
-      setCurrentStep(0);
-      setCurrentStep(prev => {
-        const newStep = 0;
-        // Simulate bot message
-        setTimeout(() => {
-          setFormSteps(currentSteps => {
-            const updatedSteps = [...currentSteps];
-            updatedSteps[newStep] = {
-              ...updatedSteps[newStep],
-              botMessage: errorMessage,
-              errorState: true
-            };
-            return updatedSteps;
-          });
-        }, 100);
-        return newStep;
-      });
+
+      return false;
     }
   };
 
@@ -191,7 +180,7 @@ export function RecipientView() {
     // Automatically progress to next step when current step is validated
     if (validateStep(currentStep)) {
       const timer = setTimeout(() => {
-        if (currentStep < 2) {
+        if (currentStep < 3) {
           setCurrentStep(prev => prev + 1);
         }
       }, 2000);
@@ -240,6 +229,9 @@ export function RecipientView() {
             </div>
           )}
 
+          {/* Payment Details */}
+          {index === currentStep && index === 1 && renderPaymentDetails(index)}
+
           {/* Next Step Button */}
           {index === currentStep && index === 0 && (
             <div className="mt-4">
@@ -253,47 +245,63 @@ export function RecipientView() {
               </button>
             </div>
           )}
+         
         </div>
       );
     });
   };
 
   // Render payment details after verification
-  const renderPaymentDetails = () => {
-    if (!request) return null;
+  const renderPaymentDetails = (index) => {
+    if (!request || currentStep < 1) return null;
+
+    // Ensure phone numbers match exactly before showing details
+    const cleanRecipientPhone = recipientPhone.replace(/\D/g, '');
+    const cleanRequestPhone = (request.recipient_phone || '').replace(/\D/g, '');
+    
+    if (cleanRecipientPhone !== cleanRequestPhone) return null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-        <div className="w-full max-w-md bg-gray-900 dark:bg-gray-800 rounded-xl shadow-2xl p-6 space-y-4 text-white">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-purple-400 mb-6">Payment Request</h2>
-            
-            <div className="bg-gray-800 text-gray-200 p-6 rounded-lg mb-4 text-left">
-              <p className="mb-4">
-                Hey there,
-              </p>
+      <div className="bg-gray-800 text-gray-200 p-6 rounded-lg mb-4 text-left">
+        <p className="mb-4">
+          Hey there,
+        </p>
 
-              <p className="mb-4">
-                {request.sender} has sent you a payment request of ${request.amount.toFixed(2)} for {request.description}.
-              </p>
+        <p className="mb-4">
+          {request.sender} has sent you a payment request of ${request.amount.toFixed(2)} for {request.description}.
+        </p>
 
-              <p className="mb-4">
-                If this looks good to you, you can process the payment by clicking the button below.
-              </p>
+        <p className="mb-4">
+          If this looks good to you, you can process the payment by clicking the button below.
+        </p>
 
-              <p>
-                Thanks,<br />
-                BuzzPay
-              </p>
+        <p>
+          Thanks,<br />
+          BuzzPay
+        </p>
+        <div>
+        {index === currentStep && index === 1 && (
+            <div className="mt-4">
+              <button
+                onClick={handleProcessPayment}
+                className="w-full py-2 px-4 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              >
+                Process Payment
+              </button>
             </div>
-
-            <button 
-              className="w-full py-3 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              onClick={handleProcessPayment}
-            >
-              Process Payment
-            </button>
-          </div>
+          )}
+          {index === currentStep && index === 3 && (
+            <div className="mt-4">
+              <button
+                onClick={handleProcessPayment}
+                disabled={!validateStep(index)}
+                className="w-full py-2 px-4 bg-purple-600 text-white rounded-md hover:bg-purple-700 
+                           disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Process Payment
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
