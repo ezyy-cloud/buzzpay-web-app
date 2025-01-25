@@ -1,0 +1,15 @@
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Optional: Add specific redirects for your routes if needed
+[[redirects]]
+  from = "/request/:id/receipt"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/request/:id"
+  to = "/index.html"
+  status = 200
