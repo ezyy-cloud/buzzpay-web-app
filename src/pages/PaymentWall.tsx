@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Smartphone } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { PaymentMethod } from '../types';
@@ -10,6 +10,7 @@ export function PaymentWall() {
   // Dark mode
   useDarkMode();
 
+  const navigate = useNavigate();
   const { id } = useParams();
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,6 +46,12 @@ export function PaymentWall() {
         .eq('id', id)
         .single();
 
+      // If payment is already paid, navigate to receipt
+      if (requestData.status === 'paid') {
+        navigate(`/request/${id}/receipt`);
+        return;
+      }
+
       if (fetchError) throw fetchError;
 
       // Prepare update payload
@@ -67,7 +74,7 @@ export function PaymentWall() {
 
       // Switch case to handle different payment methods
       switch (selectedMethod) {
-        case 'econet':
+        case 'Ecocash':
           // Clean and format phone number (remove any non-digit characters)
           const cleanPhone = requestData.recipient_phone.replace(/\D/g, '');
           
@@ -111,13 +118,13 @@ export function PaymentWall() {
               key={method.id}
               onClick={() => setSelectedMethod(method.name)}
               className={`w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-colors 
-                ${selectedMethod === method.id
+                ${selectedMethod === method.name
                   ? 'border-purple-500 bg-purple-50 dark:border-purple-600 dark:bg-purple-900/30'
                   : 'border-gray-200 dark:border-gray-700 hover:border-purple-200 dark:hover:border-purple-600'
                 }`}
             >
               <div className={`${
-                selectedMethod === method.id 
+                selectedMethod === method.name 
                   ? 'text-purple-500 dark:text-purple-400' 
                   : 'text-gray-400 dark:text-gray-600'
               }`}>
