@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { DarkModeProvider, useDarkMode } from './context/DarkModeContext';
 
@@ -9,13 +10,17 @@ import { PaymentRequestCreation } from './pages/PaymentRequestCreation';
 
 function AppContent() {
   const { darkMode, toggleDarkMode } = useDarkMode();
+  const navigate = useNavigate();
 
   return (
     <div className={`min-h-screen ${darkMode ? 'dark' : ''}`}>
       <div className="bg-white dark:bg-gray-900 min-h-screen">
         <div className="container mx-auto px-4 py-6 sticky top-0 z-50 bg-white dark:bg-gray-900 shadow-sm">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
+            <div 
+              onClick={() => navigate('/create')} 
+              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            >
               <PaperAirplaneIcon className="w-8 h-8 text-blue-600" />
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">BuzzPay</h1>
             </div>

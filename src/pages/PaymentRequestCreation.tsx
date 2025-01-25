@@ -18,6 +18,11 @@ export function PaymentRequestCreation() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [paymentRequestStatus, setPaymentRequestStatus] = useState<{
+    success: boolean;
+    message: string;
+    shareLink?: string;
+  } | null>(null);
 
   // Dark mode state
   useDarkMode();
@@ -71,12 +76,6 @@ export function PaymentRequestCreation() {
     // If last input is not visible, exclude it from validation
     return [0, 1, 2, 3, 4, ...(isLastInputVisible ? [5] : [])].every(step => validateStep(step));
   };
-
-  const [paymentRequestStatus, setPaymentRequestStatus] = useState<{
-    success: boolean;
-    message: string;
-    shareLink?: string;
-  } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,6 +158,21 @@ export function PaymentRequestCreation() {
       setError(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEnterKeyAdvance = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      // Prevent default form submission
+      e.preventDefault();
+
+      // Check validation based on current step
+      const isCurrentStepValid = validateStep(currentStep);
+
+      if (isCurrentStepValid && currentStep < 5) {
+        // Advance to next step
+        setCurrentStep(prev => prev + 1);
+      }
     }
   };
 
@@ -258,6 +272,7 @@ export function PaymentRequestCreation() {
             placeholder="Enter your name"
             value={sender}
             onChange={(e) => setSender(e.target.value)}
+            onKeyDown={handleEnterKeyAdvance}
           />
         ),
         isValid: sender.trim().length > 1
@@ -281,6 +296,7 @@ export function PaymentRequestCreation() {
             countrySelectProps={{
               className: 'custom-country-select',
             }}
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleEnterKeyAdvance(e)}
           />
         ),
         isValid: senderPhone && senderPhone.length > 5 && isValidPhoneNumber(senderPhone)
@@ -300,6 +316,7 @@ export function PaymentRequestCreation() {
             placeholder="Enter recipient's name"
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
+            onKeyDown={handleEnterKeyAdvance}
           />
         ),
         isValid: recipient.trim().length > 1
@@ -323,6 +340,7 @@ export function PaymentRequestCreation() {
             countrySelectProps={{
               className: 'custom-country-select',
             }}
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleEnterKeyAdvance(e)}
           />
         ),
         isValid: recipientPhone && recipientPhone.length > 5 && isValidPhoneNumber(recipientPhone)
@@ -347,6 +365,7 @@ export function PaymentRequestCreation() {
               placeholder="Enter amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              onKeyDown={handleEnterKeyAdvance}
             />
           </div>
         ),
@@ -367,6 +386,7 @@ export function PaymentRequestCreation() {
             placeholder="Enter payment description"
             value={description}
             onChange={handleDescriptionChange}
+            onKeyDown={handleEnterKeyAdvance}
           />
         ),
         isValid: description.trim().length > 0
@@ -459,7 +479,7 @@ export function PaymentRequestCreation() {
                 className="w-full py-3 px-4 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors 
                            disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Submitting...' : 'Create Payment Request'}
+                {loading ? 'Creating...' : 'Create Payment Request'}
               </button>
             </div>
           )}

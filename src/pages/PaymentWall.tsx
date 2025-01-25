@@ -97,24 +97,8 @@ export function PaymentWall() {
   };
 
   const handleConfirmPayment = () => {
-    // Improve cross-browser compatibility for phone dialer
-    try {
-      // First, try the standard tel: link
-      const telLink = document.createElement('a');
-      telLink.href = `tel:${ussdCode}`;
-      
-      // Check if the device supports tel: links
-      if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
-        // For iOS, use a more robust method
-        window.location.href = `tel:${ussdCode}`;
-      } else {
-        // For other browsers, attempt to click the link
-        telLink.click();
-      }
-    } catch (error) {
-      console.error('Could not open phone dialer:', error);
-    }
-    
+    // Optionally open phone dialer (works on mobile devices)
+    window.location.href = `tel:${ussdCode}`;
     setShowConfirmModal(false);
     setLoading(false);
   };

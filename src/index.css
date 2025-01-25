@@ -1,3 +1,58 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  input {
+    @apply 
+      w-full 
+      px-3 
+      py-2 
+      border 
+      rounded-md 
+      text-sm 
+      transition-colors 
+      duration-200 
+      ease-in-out
+      
+      /* Light mode styles */
+      bg-white 
+      text-gray-900 
+      border-gray-300 
+      placeholder-gray-500 
+      focus:outline-none 
+      focus:ring-2 
+      focus:ring-purple-500 
+      focus:border-transparent
+      
+      /* Dark mode styles */
+      dark:bg-gray-800 
+      dark:text-white 
+      dark:border-gray-700 
+      dark:placeholder-gray-400 
+      dark:focus:ring-purple-600
+      
+      /* Disabled state */
+      disabled:bg-gray-100 
+      disabled:text-gray-500 
+      disabled:cursor-not-allowed
+      dark:disabled:bg-gray-700 
+      dark:disabled:text-gray-400
+      
+      /* Error state */
+      invalid:border-red-500 
+      invalid:text-red-600
+      dark:invalid:border-red-400 
+      dark:invalid:text-red-400;
+  }
+
+  .global-label {
+    @apply 
+      block 
+      mb-2 
+      text-sm 
+      font-medium 
+      text-gray-700 
+      dark:text-gray-300;
+  }
+}
