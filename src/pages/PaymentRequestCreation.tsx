@@ -92,7 +92,7 @@ export function PaymentRequestCreation() {
       if (error) throw error;
 
       // Generate shareable link
-      const shareLink = `https://buzzpay.co/request/${data.id}`;
+      const shareLink = `https://buzzpayme.netlify.app/request/${data.id}`;
 
       // Set payment request status
       setPaymentRequestStatus({
@@ -110,7 +110,7 @@ export function PaymentRequestCreation() {
         `${shareLink}\n\n` +
         `Thanks!\n\n`+
         `${sender}\n\n`+
-        `Create your own payment request at https://buzzpay.co`;
+        `Create your own payment request at https://buzzpayme.netlify.app/`;
       // Encode message for URL
       const encodedMessage = encodeURIComponent(whatsappMessage);
 
